@@ -6,16 +6,19 @@ import random
 from tqdm import tqdm
 
 
-def distance(longA, longB, latA, latB):
+def distance(city1, city2):
     """Calculates the distance between two longitude latitude pairs in km"""
     # radius of earth in km 
     R = 6373.0
 
+    loc1 = location(city1)
+    loc2 = location(city2)
+
     # convert degrees to radians
-    lat1 = radians(latA) 
-    lon1 = radians(longA) 
-    lat2 = radians(latB) 
-    lon2 = radians(longB) 
+    lat1 = radians(loc1[0]) 
+    lon1 = radians(loc1[1]) 
+    lat2 = radians(loc2[0]) 
+    lon2 = radians(loc2[1]) 
 
     dlon = lon2 - lon1
     dlat = lat2 - lat1 
@@ -38,25 +41,21 @@ def hometowns():
     return hometowns
     
 
-def location():
-    """Return the a dict of (latitude, longitude) per city""" 
+def location(city):
+    """Return a tuple with (latitude, longitude) for the city""" 
     # init variables
-    long = []
+    lon = []
     lat = []
-    locations = {}
 
-    # for each city, calculate the average longitude and latitude
-    for city in CITIES:
-        for i in BUSINESSES[city]:
-            long.append(i["longitude"])
-            lat.append(i["latitude"])
-        if long and lat:
-            locations[city] = (sum(lat)/len(lat), sum(long)/len(long))
-        else:
-            locations[city] = None
-        long = []
-        lat = []
-    return locations
+    # Calculate the average longitude and latitude of the businesses in the city
+    for i in BUSINESSES[city]:
+        lon.append(i["longitude"])
+        lat.append(i["latitude"])
+    # make sure a longitude and latitude were provided
+    if lon and lat:
+        return (sum(lat)/len(lat), sum(lon)/len(lon))
+    else:
+        return None
 
 
 def location_user(user_id):
@@ -82,3 +81,5 @@ def location_user(user_id):
         return None
     # return the average latitude and longitude of the businesses
     return {"latitude" : sum(lat)/len(lat), "longitude" : sum(long)/len(long)}
+
+print(distance("sun city", "westlake"))
