@@ -32,12 +32,13 @@ def location(user_id):
             # if the review was left by the desired user, save the business_id
             if i["user_id"] == user_id:
                 business_id = i["business_id"]
-                # go through all businesses and find their exact location
+                # go through all businesses and, if it's the desired business_id, find the exact location
                 for j in BUSINESSES[city]:
                     if j["business_id"] == business_id:
                         long.append(j["longitude"])
                         lat.append(j["latitude"])
     
+    # return the average latitude and longitude of the businesses
     return {"latitude" : sum(lat)/len(lat), "longitude" : sum(long)/len(long)}
 
 print(location("1-aIDjs2uWYLcoPTDBy5kg"))
