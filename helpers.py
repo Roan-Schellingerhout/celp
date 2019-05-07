@@ -1,19 +1,49 @@
-def woonplaatsen():
+from math import sin, cos, sqrt, atan2, radians 
+from data import CITIES, BUSINESSES, USERS, REVIEWS, TIPS, CHECKINS
+
+import data
+import random
+from tqdm import tqdm
+
+
+def distance(longA, longB, latA, latB):
+    """Calculates the distance between two longitude latitude pairs in km"""
+    # radius of earth in km 
+    R = 6373.0
+
+    # convert degrees to radians
+    lat1 = radians(latA) 
+    lon1 = radians(longA) 
+    lat2 = radians(latB) 
+    lon2 = radians(longB) 
+
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1 
+
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2 
+    c = 2 * atan2(sqrt(a), sqrt(1 - a)) 
+
+    return R * c
+
+
+def hometowns():
+    """Find the (probable) hometown of each user in the dataset"""
     # init variables
-    woonplaatsen = {}
+    hometowns = {}
 
     # find the city of each user
     for city in CITIES:
         for i in USERS[city]:
-            woonplaatsen[i["user_id"]] = city
-    return woonplaatsen
+            hometowns[i["user_id"]] = city
+    return hometowns
     
 
-def locatie():
+def location():
+    """Return the a dict of (latitude, longitude) per city""" 
     # init variables
     long = []
     lat = []
-    locaties = {}
+    locations = {}
 
     # for each city, calculate the average longitude and latitude
     for city in CITIES:
@@ -21,36 +51,34 @@ def locatie():
             long.append(i["longitude"])
             lat.append(i["latitude"])
         if long and lat:
-            locaties[city] = (sum(lat)/len(lat), sum(long)/len(long))
+            locations[city] = (sum(lat)/len(lat), sum(long)/len(long))
         else:
-            locaties[city] = None
+            locations[city] = None
         long = []
         lat = []
-    return locaties
+    return locations
 
 
-
-# def location(user_id):
-#     """Finds the longitude and latitude of a user based on the locations of previously-reviewed businesses"""
+def location_user(user_id):
+    """Finds the longitude and latitude of a user based on the locations of previously-reviewed businesses"""
     
-#     # init variables
-#     long = []
-#     lat = []
+    # init variables
+    long = []
+    lat = []
 
-#     # go over all reviews in all cities
-#     for city in tqdm(CITIES):
-#         print("a")
-#         for i in REVIEWS[city]:
-#             # if the review was left by the desired user, save the business_id
-#             if i["user_id"] == user_id:
-#                 business_id = i["business_id"]
-#                 # go through all businesses and, if it's the desired business_id, find the exact location
-#                 for j in BUSINESSES[city]:
-#                     if j["business_id"] == business_id:
-#                         long.append(j["longitude"])
-#                         lat.append(j["latitude"])
+    # go over all reviews in all cities
+    for city in tqdm(CITIES):
+        for i in REVIEWS[city]:
+            # if the review was left by the desired user, save the business_id
+            if i["user_id"] == user_id:
+                business_id = i["business_id"]
+                # go through all businesses and, if it's the desired business_id, find the exact location
+                for j in BUSINESSES[city]:
+                    if j["business_id"] == business_id:
+                        long.append(j["longitude"])
+                        lat.append(j["latitude"])
     
-#     if len(long) == 0 or len(lat) == 0:
-#         return None
-#     # return the average latitude and longitude of the businesses
-#     return {"latitude" : sum(lat)/len(lat), "longitude" : sum(long)/len(long)}
+    if len(long) == 0 or len(lat) == 0:
+        return None
+    # return the average latitude and longitude of the businesses
+    return {"latitude" : sum(lat)/len(lat), "longitude" : sum(long)/len(long)}
