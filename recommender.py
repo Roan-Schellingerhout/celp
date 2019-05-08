@@ -44,15 +44,12 @@ def create_utility_matrix():
         for i in USERS[city]:
             user_ids.add(i["user_id"])
 
-    # create DataFrame
+    # create a DataFrame with the businesses and users
     utility = pd.DataFrame(np.nan, index = business_ids, columns = user_ids)
     
+    # for each user/business combo, if the user has reviewed the business, find the last given rating
     for business in utility.index:
         for user in utility:
             if business in helpers.get_businesses(user):
                 utility.at[business, user] = data.get_reviews(helpers.business_city(business), business, user)[-1]["stars"]
     return utility
-
-
-utility_matrix = create_utility_matrix()
-to_msg = utility_matrix.to_msgpack(r'C:/Users/Roan/celp/data/celpdf.msgpack')
