@@ -56,8 +56,7 @@ def location(city):
         return (sum(lat)/len(lat), sum(lon)/len(lon))
     else:
         return None
-
-
+        
 # def location_user(user_id):
 #     """Finds the longitude and latitude of a user based on the locations of previously-reviewed businesses"""
     
