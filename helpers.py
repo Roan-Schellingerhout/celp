@@ -107,4 +107,11 @@ def get_businesses(user_id):
     return business
             
 
-print(distance("-S1dz92Q3RPfHomiqEeP8Q", "p8u03IURLPg_5jYSY3OmMQ"))
+def business_city(business_id):
+    """Finds the city a business is located in"""
+    for city in CITIES:
+        for i in BUSINESSES[city]:
+            if i["business_id"] == business_id:
+                return city
+    return None
+
