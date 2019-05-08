@@ -11,8 +11,11 @@ def distance(user_id, business_id):
     # radius of earth in km 
     R = 6373.0
 
-    loc1 = location_user(user_id)
-    loc2 = location_business(business_id)
+    try:
+        loc1 = location_user(user_id)
+        loc2 = location_business(business_id)
+    except:
+        return "Invalid business_id and/or user_id"
 
     # convert degrees to radians
     lat1 = radians(loc1[0]) 
@@ -81,10 +84,27 @@ def location_user(user_id):
 
 
 def location_business(business_id):
+    """Finds the location of a business based on its id"""
+    # go through all businesses in all cities
     for city in CITIES:
         for business in BUSINESSES[city]:
+            # return latitude and longitude once the desired business is found
             if business["business_id"] == business_id:
                 return (business["latitude"], business["longitude"])
+    # if the business is not present, return None
+    return None
 
+
+def get_businesses(user_id):
+    """Finds all the businesses a user has reviewed"""
+    business = set()
+
+    # find every business that the user has reviewed.
+    for city in CITIES:
+        for i in REVIEWS[city]:
+            if i["user_id"] == user_id:
+                business.add(i["business_id"])
+    return business
+            
 
 print(distance("-S1dz92Q3RPfHomiqEeP8Q", "p8u03IURLPg_5jYSY3OmMQ"))
