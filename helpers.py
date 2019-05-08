@@ -109,9 +109,11 @@ def get_businesses(user_id):
 
 def business_city(business_id):
     """Finds the city a business is located in"""
+
+    # look for businesses until the desired one is found, return the city it is in
     for city in CITIES:
         for i in BUSINESSES[city]:
             if i["business_id"] == business_id:
                 return city
+    # if no business was found, return None
     return None
-
