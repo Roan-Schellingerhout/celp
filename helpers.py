@@ -82,4 +82,13 @@ def location_user(user_id):
     # return the average latitude and longitude of the businesses
     return {"latitude" : sum(lat)/len(lat), "longitude" : sum(long)/len(long)}
 
-print(location_user("-S1dz92Q3RPfHomiqEeP8Q"))
+def get_reviews(user_id):
+    business = list()
+
+    # find every business that the user has reviewed.
+    for city in CITIES:
+        for i in REVIEWS[city]:
+            if i["user_id"] == user_id:
+                restaurants.append(i["business_id"])
+    
+    return business
