@@ -86,5 +86,16 @@ def location_business(business_id):
             if business["business_id"] == business_id:
                 return (business["latitude"], business["longitude"])
 
+def get_businesses(user_id):
+    business = set()
+
+    # find every business that the user has reviewed.
+    for city in CITIES:
+        for i in REVIEWS[city]:
+            if i["user_id"] == user_id:
+                business.add(i["business_id"])
+    
+    return business
+            
 
 print(distance("-S1dz92Q3RPfHomiqEeP8Q", "p8u03IURLPg_5jYSY3OmMQ"))
