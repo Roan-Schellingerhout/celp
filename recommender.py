@@ -66,21 +66,70 @@ def similarity_matrix_cosine(utility_matrix):
     return pd.DataFrame(pw.cosine_similarity(matrix), index = utility_matrix.index, columns = utility_matrix.index)
 
 
+def select_neighborhood(similarity_matrix, utility_matrix, user_id, business_id):
+    """selects all items with similarity > 0""" 
+    # find all movies with a cosine similarity of more than 0
+    try:
+        similar = similarity_matrix[business_id]   
+    except:
+        return pd.Series()
+    
+    similar = similar[similar >= 0]
+
+    # find all the movies which the user has not seen
+    try:
+        user_movies = utility_matrix[user_id]
+        not_seen = user_movies[user_movies.isnull()]      
+    except:
+        return pd.Series()
+    
+    # drop the unseen movies from the Series of similar movies (if there are any)
+    for i in not_seen.index:
+        try:
+            similar = similar.drop(i)
+        except:
+            pass
+    return similar
+
+
+def weighted_mean(neighborhood, utility_matrix, user_id):
+    """calculates the weighted mean"""
+    # for each neighbor, calculate the rating times the weight of said rating
+    
+    if len(neighborhood):
+        neighbor_ratings = utility_matrix[user_id] * neighborhood
+    else:
+        print("appelsap")
+        return np.nan
+    
+    # return the sum of the neighbor_ratings divided by the sum of the weights   
+    try:
+        return neighbor_ratings.sum() / neighborhood.values.sum()
+    except ZeroDivisionError:
+        return np.nan
+
+
+# Only use cf when neighborhood is of length X, currently crashes when neighborhood is empty. 
+ut = create_utility_matrix(helpers.json_to_df())
+sim = similarity_matrix_cosine(create_utility_matrix(helpers.json_to_df()))
+neighborhood = select_neighborhood(sim, ut, "iHe2FR5fOTDG-AEvxfUCNw", "-CBW4yvallpWtfWBbZCHqg")
+print(weighted_mean(neighborhood, ut, "iHe2FR5fOTDG-AEvxfUCNw"))
+
 
 
 
 """probably throwaway code"""
-# def create_utility_matrix():
+# def test():
 #     """Create a utility matrix of businesses and user reviews"""
 #     # create an empty DataFrame
 #     utility_matrix = pd.DataFrame()
 
 #     # go over all cities
-#     for city in CITIES:
+#     for city in tqdm(CITIES):
 #         # create a city-specific DataFrame
 #         cityFrame = pd.DataFrame()
 #         # add all reviews from that city to the DataFrame
-#         for review in tqdm(REVIEWS[city]):
+#         for review in REVIEWS[city]:
 #             cityFrame.at[review["business_id"], review["user_id"]] = review["stars"]
 #         # append the city DataFrame to the utility matrix
 #         utility_matrix = utility_matrix.append(cityFrame, sort=False)

@@ -121,9 +121,8 @@ def business_city(business_id):
     return None
 
 
-
 def json_to_df():
-    """Converts all review.jsons to a single DataFrame containing the columns business_id, stars, and user_id"""
+    """Converts all review.jsons to a single DataFrame containing the columns business_id and user_id"""
     df = pd.DataFrame()
 
     # add each city's DataFrame to the general DataFrame
