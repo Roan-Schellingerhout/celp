@@ -39,8 +39,7 @@ def create_utility_matrix():
         cityFrame = pd.DataFrame()
         # add all reviews from that city to the DataFrame
         for review in tqdm(REVIEWS[city]):
-            if not review["business_id"] in out_of_businesses:
-                cityFrame.at[review["business_id"], review["user_id"]] = review["stars"]
+            cityFrame.at[review["business_id"], review["user_id"]] = review["stars"]
         # append the city DataFrame to the utility matrix
         utility_matrix = utility_matrix.append(cityFrame, sort=False)
     
