@@ -4,6 +4,8 @@ from data import CITIES, BUSINESSES, USERS, REVIEWS, TIPS, CHECKINS
 import data
 import random
 from tqdm import tqdm
+import pandas as pd
+from pandas.io.json import json_normalize
 
 
 def distance(user_id, business_id):
@@ -117,3 +119,20 @@ def business_city(business_id):
                 return city
     # if no business was found, return None
     return None
+
+
+
+def json_to_df():
+    """Converts all review.jsons to a single DataFrame containing the columns business_id, stars, and user_id"""
+    df = pd.DataFrame()
+
+    # add each city's DataFrame to the general DataFrame
+    for city in CITIES:
+        reviews = REVIEWS[city]
+        df = df.append(pd.DataFrame.from_dict(json_normalize(reviews), orient='columns'))
+    
+    # only keep the specified columns
+    df = df[["business_id", "stars", "user_id"]]
+    # drop repeated user/business reviews and only save the latest one (since that one is most relevant)
+    df = df.drop_duplicates(subset=["business_id", "user_id"], keep="last")
+    return df
