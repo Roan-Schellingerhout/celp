@@ -30,14 +30,6 @@ def recommend(user_id=None, business_id=None, city=None, n=10):
 
 def create_utility_matrix():
     """Create a utility matrix of businesses and user reviews"""
-    out_of_businesses = set()
-
-    for city in CITIES:
-        for business in BUSINESSES[city]:
-            if not business["is_open"]:
-                out_of_businesses.add(business["business_id"])
-
-
     # create an empty DataFrame
     utility_matrix = pd.DataFrame()
 
@@ -53,3 +45,27 @@ def create_utility_matrix():
         utility_matrix = utility_matrix.append(cityFrame, sort=False)
     
     return utility_matrix
+
+
+def filter_recommendations(user_id, recommendations, n):
+    """Filters recommendations down to nearby, open businesses"""
+    # init variables
+    out_of_businesses = set()
+
+    # find all businesses that are out of business
+    for city in CITIES:
+        for business in BUSINESSES[city]:
+            if not business["is_open"]:
+                out_of_businesses.add(business["business_id"])
+
+    # drop all recommendations of business that are out of business
+    for business in recommendations:
+        if business["business_id"] in out_of_businesses:
+            recommendations.remove(business)
+
+    # remove businesses that are too far away, as long as enough recommendations remain
+    for business in recommendations:
+        if helpers.distance(user_id, business["business_id"]) > 25 and len(recommendations) > n:
+            recommendations.remove(business)
+
+    return recommendations
