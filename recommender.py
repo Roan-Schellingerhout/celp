@@ -30,31 +30,6 @@ def recommend(user_id=None, business_id=None, city=None, n=10):
 
 def create_utility_matrix():
     """Create a utility matrix of businesses and user reviews"""
-    # # init variables
-    # business_ids = set()
-    # user_ids = set()
-
-    # # find all business_ids
-    # for city in CITIES:
-    #     for i in BUSINESSES[city]:
-    #         business_ids.add(i["business_id"])
-
-    # # find all user_ids
-    # for city in CITIES:
-    #     for i in USERS[city]:
-    #         user_ids.add(i["user_id"])
-
-    # # create a DataFrame with the businesses and users
-    # utility = pd.DataFrame(np.nan, index = business_ids, columns = user_ids)
-    
-    # # for each user/business combo, if the user has reviewed the business, find the last given rating
-    # for business in tqdm(utility.index):
-    #     for user in utility:
-    #         if business in helpers.get_businesses(user):
-    #             utility.at[business, user] = data.get_reviews(helpers.business_city(business), business, user)[-1]["stars"]
-    # # return utility
-
-
     out_of_businesses = set()
 
     for city in CITIES:
@@ -78,6 +53,3 @@ def create_utility_matrix():
         utility_matrix = utility_matrix.append(cityFrame, sort=False)
     
     return utility_matrix
-
-
-print(pd.read_msgpack("C:/Users/Roan/celp/utility_matrix.msgpack"))
