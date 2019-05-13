@@ -121,9 +121,8 @@ def business_city(business_id):
     return None
 
 
-
 def json_to_df():
-    """Converts all review.jsons to a single DataFrame containing the columns business_id, stars, and user_id"""
+    """Converts all review.jsons to a single DataFrame containing the columns business_id and user_id"""
     df = pd.DataFrame()
 
     # add each city's DataFrame to the general DataFrame
@@ -131,8 +130,6 @@ def json_to_df():
         reviews = REVIEWS[city]
         df = df.append(pd.DataFrame.from_dict(json_normalize(reviews), orient='columns'))
     
-    # only keep the specified columns
-    df = df[["business_id", "stars", "user_id"]]
     # drop repeated user/business reviews and only save the latest one (since that one is most relevant)
-    df = df.drop_duplicates(subset=["business_id", "user_id"], keep="last")
+    df = df.drop_duplicates(subset=["business_id", "user_id"], keep="last").reset_index()[["business_id", "stars", "user_id"]]
     return df
