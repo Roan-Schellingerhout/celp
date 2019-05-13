@@ -133,3 +133,48 @@ def json_to_df():
     # drop repeated user/business reviews and only save the latest one (since that one is most relevant)
     df = df.drop_duplicates(subset=["business_id", "user_id"], keep="last").reset_index()[["business_id", "stars", "user_id"]]
     return df
+
+def json_to_df_cat():
+    """Converts the json BUSINESSES to a DataFrame containing all businesses and their categories"""
+    df = pd.DataFrame()
+    df_utility = pd.DataFrame()
+
+    count = 0
+    # make the DataFrame contain everything from the businesses
+    for city in CITIES:
+        businesses = BUSINESSES[city]
+        df = df.append(pd.DataFrame.from_dict(json_normalize(businesses), orient='columns'))
+
+    # only keep the specified columns
+    df = df[["business_id", "categories"]]
+
+    # clean up the categories
+    df["categories"] = df["categories"].map(str.lower)
+
+    # make a list with all the ids and an empty set
+    ids = list(df["business_id"])
+    all_cats = set()
+
+    # make every id get all the cats and replace the categories value with a list of the values.
+    for id in ids:
+        cats = df["categories"].loc[df["business_id"] == id]
+        cats = list(cats)
+        cats = cats[0].split(",")
+        df["categories"].loc[df["business_id"] == id] = [ cats ]  
+
+        for cat in cats:
+            all_cats.add(cat)
+        
+    df_utility = pd.DataFrame(index= ids, columns= all_cats)
+
+    # for every id check if a cat is applied to the id
+    for id in ids:
+        cats = list(df["categories"].loc[df["business_id"] == id])
+        cats = cats[0]
+        for cat in list(df_utility):
+            if cat in cats:
+                df_utility.at[id, cat] = 1
+            else:
+                df_utility.at[id, cat] = 0
+
+    return df_utility
