@@ -134,7 +134,7 @@ def json_to_df():
     df = df.drop_duplicates(subset=["business_id", "user_id"], keep="last").reset_index()[["business_id", "stars", "user_id"]]
     return df
 
-def json_to_df_cat():
+def json_to_df_cat(type):
     """Converts the json BUSINESSES to a DataFrame containing all businesses and their categories"""
     df = pd.DataFrame()
     df_utility = pd.DataFrame()
@@ -164,7 +164,10 @@ def json_to_df_cat():
 
         for cat in cats:
             all_cats.add(cat)
-        
+
+    if type == "Spacy":
+        return df
+
     df_utility = pd.DataFrame(index= ids, columns= all_cats)
 
     # for every id check if a cat is applied to the id
