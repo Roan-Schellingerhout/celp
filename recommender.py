@@ -151,7 +151,7 @@ def json_to_df():
     return df
 
 
-def test_mse(neighborhood_size = 5, sample = 25, repetitions = 0):
+def test_mse(neighborhood_size = 5, sample = 10, repetitions = 0):
     """Tests the mse of predictions based on a given number of neighborhood sizes
 
     -neighborhood_size: the sizes of neighborhoods between the number and 1 (so 5 tests for neighborhood of length 1, 2, 3, 4, 5)
@@ -165,6 +165,7 @@ def test_mse(neighborhood_size = 5, sample = 25, repetitions = 0):
     ut = create_utility_matrix(df[0])
     sim = similarity_matrix_cosine(ut)
 
+    print("Starting calculations...")
     # test the mse based on the length of the neighborhood
     for i in range(1, neighborhood_size+1):
         # if more than 0 repetitions are required, repeat the process
@@ -180,6 +181,6 @@ def test_mse(neighborhood_size = 5, sample = 25, repetitions = 0):
         else:
             predictions = predict_ratings(sim, ut, df[1], i).dropna()
             indices = sorted(random.choices(predictions.index, k=sample))
-            print("The mse for a neighborhood of length", i, "with a sample size of", sample, "is", mse(predictions.loc[indices]))
+            print("The mse for a neighborhood of length", i, "is", mse(predictions.loc[indices]), "this is based on", len(predictions), "predictions")
 
-test_mse(repetitions = 5)
+test_mse(neighborhood_size=10)

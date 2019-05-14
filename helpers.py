@@ -7,6 +7,9 @@ from tqdm import tqdm
 import pandas as pd
 from pandas.io.json import json_normalize
 
+import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
+
 
 def distance(user_id, business_id):
     """Calculates the distance between two a user and a business in km"""
@@ -182,3 +185,31 @@ def json_to_df_cat(type):
     return df_utility
 
 
+
+
+
+"""To be used in jupyter notebook
+
+Data based on following cities: clairton, claremont, clark, clarkson, cleveland, cleveland heigh, cleveland height, clevelant heights, sun city, westlake
+"""
+# neighborhood_len = [i+1 for i in range(10)]
+# mse = [1.7564182528686922, 1.3721995028085512, 1.197445599162912, 1.0903723452322052, 1.0330697173998888, 0.9897513505503943, 0.9468272073142202, 0.9267952685422991, 0.9139840329554876, 0.8908426363903116]
+# amount_of_predictions = [16566, 12114, 9735, 8194, 7110, 6222, 5558, 4986, 4512, 4100]
+
+# fig, ax1 = plt.subplots()
+
+# ax1.set_xlabel("Minimum length of neighborhood")
+# ax1.set_ylabel("Mean squared error")
+# ax1.plot(neighborhood_len, mse, color="red")
+# mse = mlines.Line2D([], [], color='red', label='Mean squared error')
+
+# ax2 = plt.twinx()
+
+# ax2.set_ylabel("Amount of predictions")
+# ax2.plot(neighborhood_len, amount_of_predictions, color="blue")
+# ax2.tick_params(axis="y")
+# amount = mlines.Line2D([], [], color='blue', label='Amount of predictions')
+
+# fig.tight_layout()
+# plt.legend(handles=[mse, amount], loc="upper right")
+# plt.show()
