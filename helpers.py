@@ -134,12 +134,12 @@ def json_to_df():
     df = df.drop_duplicates(subset=["business_id", "user_id"], keep="last").reset_index()[["business_id", "stars", "user_id"]]
     return df
 
+
 def json_to_df_cat():
     """Converts the json BUSINESSES to a DataFrame containing all businesses and their categories"""
     df = pd.DataFrame()
     df_utility = pd.DataFrame()
 
-    count = 0
     # make the DataFrame contain everything from the businesses
     for city in CITIES:
         businesses = BUSINESSES[city]
@@ -178,3 +178,5 @@ def json_to_df_cat():
                 df_utility.at[id, cat] = 0
 
     return df_utility
+
+

@@ -69,126 +69,117 @@ def similarity_matrix_cosine(utility_matrix):
     return pd.DataFrame(pw.cosine_similarity(matrix.fillna(0)), index = utility_matrix.index, columns = utility_matrix.index)
 
 
-
-def select_neighborhood(similarity_matrix, utility_matrix, user_id, business_id):
-    """selects all items with similarity > 0""" 
-    # find all movies with a cosine similarity of more than 0
-    try:
-        similar = similarity_matrix[business_id]   
-    except:
-        return pd.Series()
+def mse(predicted_ratings):
+    """Computes the mean square error between actual ratings and predicted ratings
     
-    similar = similar[(similar > 0) & ~(similar.index == business_id)]
+    Arguments:
+    predicted_ratings -- a dataFrame containing the columns rating and predicted rating
+    """
+    diff = predicted_ratings['stars'] - predicted_ratings['predicted rating']
+    return (diff**2).mean()
 
-    # find all the movies which the user has not seen
-    try:
-        user_movies = utility_matrix[user_id]
-        not_seen = user_movies[user_movies.isnull()]      
-    except:
-        return pd.Series()
+
+def split_data(data, d = 0.75):
+    """Split data in a training and test set.
     
-    # drop the unseen movies from the Series of similar movies (if there are any)
-    for i in not_seen.index:
-        try:
-            similar = similar.drop(i)
-        except:
-            pass
-    return similar
+    Arguments:
+    data -- any dataFrame.
+    d    -- the fraction of data in the training set
+    """
+    np.random.seed(seed=5)
+    mask_test = np.random.rand(data.shape[0]) < d
+    return data[mask_test], data[~mask_test]
 
 
 
-def weighted_mean(neighborhood, utility_matrix, user_id):
-    """calculates the weighted mean"""
-    # for each neighbor, calculate the rating times the weight of said rating
+def predict_ratings(similarity, utility, to_predict, n):
+    """Predicts the predicted rating for the input test data.
     
-    if len(neighborhood):
-        neighbor_ratings = utility_matrix[user_id] * neighborhood
-    else:
+    Arguments:
+    similarity -- a dataFrame that describes the similarity between items
+    utility    -- a dataFrame that contains a rating for each user (columns) and each movie (rows). 
+                  If a user did not rate an item the value np.nan is assumed. 
+    to_predict -- A dataFrame containing at least the columns movieId and userId for which to do the predictions
+    """
+    # copy input (don't overwrite)
+    ratings_test_c = to_predict.copy()
+    # apply prediction to each row
+    ratings_test_c['predicted rating'] = to_predict.apply(lambda row: predict_ids(similarity, utility, row['user_id'], row['business_id'], n), axis=1)
+    return ratings_test_c
+
+### Helper functions for predict_ratings_item_based ###
+
+
+def predict_ids(similarity, utility, userId, itemId, n):
+    # select right series from matrices and compute
+    if userId in utility.columns and itemId in similarity.index:
+        return predict_vectors(utility.loc[:,userId], similarity[itemId], n)
+    return np.nan
+
+
+def predict_vectors(user_ratings, similarities, n):
+    # select only movies actually rated by user
+    relevant_ratings = user_ratings.dropna()
+    
+    # select corresponding similairties
+    similarities_s = similarities[relevant_ratings.index]
+    
+    # select neighborhood
+    similarities_s = similarities_s[similarities_s > 0.0]
+    relevant_ratings = relevant_ratings[similarities_s.index]
+    
+    # if there's nothing left return a prediction of 0
+    norm = similarities_s.sum()
+    if(norm == 0) or len(similarities_s) < n:
         return np.nan
     
-    # return the sum of the neighbor_ratings divided by the sum of the weights   
-    try:
-        return neighbor_ratings.sum() / neighborhood.values.sum()
-    except:
-        return np.nan
+    # compute a weighted average (i.e. neighborhood is all) 
+    return np.dot(relevant_ratings, similarities_s)/norm
 
 
-def predict_ratings_item_based():
-    """Predict ratings item based"""
+def json_to_df():
+    """Converts all review.jsons to a single DataFrame containing the columns business_id and user_id"""
+    df = pd.DataFrame()
+
+    # add each city's DataFrame to the general DataFrame
+    for city in CITIES:
+        reviews = REVIEWS[city]
+        df = df.append(pd.DataFrame.from_dict(json_normalize(reviews), orient='columns'))
+    
+    # drop repeated user/business reviews and only save the latest one (since that one is most relevant)
+    df = df.drop_duplicates(subset=["business_id", "user_id"], keep="last").reset_index()[["business_id", "stars", "user_id"]]
+    return df
+
+
+def test_mse(neighborhood_size = 5, sample = 25, repetitions = 0):
+    """Tests the mse of predictions based on a given number of neighborhood sizes
+
+    -neighborhood_size: the sizes of neighborhoods between the number and 1 (so 5 tests for neighborhood of length 1, 2, 3, 4, 5)
+    -sample: the amount of indices of the predictions to be taken into consideration (useful for making sure the amount of predictions don't matter)
+    -repetitions: the amount of times the experiment should be done, more repetitions give more accurate results
+    
+    """
     # init variables
-    user_df = helpers.json_to_df().reset_index()[["business_id", "stars", "user_id"]]
-    ut = create_utility_matrix(user_df)
+    all_df = json_to_df()
+    df = split_data(all_df)
+    ut = create_utility_matrix(df[0])
     sim = similarity_matrix_cosine(ut)
 
-    # calculate the first 100 ratings (because load times and w/e)
-    for i in tqdm(user_df.index):
-        if i == 100:
-            break
-        neighborhood = select_neighborhood(sim, ut, user_df.loc[i]["user_id"], user_df.loc[i]["business_id"])
-        if len(neighborhood) >= 1:
-            user_df.at[i, "predicted rating"] = weighted_mean(neighborhood, ut, user_df.loc[i]["user_id"])
+    # test the mse based on the length of the neighborhood
+    for i in range(1, neighborhood_size+1):
+        # if more than 0 repetitions are required, repeat the process
+        if repetitions:
+            rep_loop = []
+            for j in range(repetitions):
+                predictions = predict_ratings(sim, ut, df[1], i).dropna()
+                indices = sorted(random.choices(predictions.index, k=sample))
+                rep_loop.append(mse(predictions.loc[indices]))
+            print("The mse for a neighborhood of length", i, "with a sample size of", sample, "over", repetitions, "repetitions is", sum(rep_loop)/len(rep_loop))
+            rep_loop = []
+        # if no repetitions are required, calculate the mse's once
         else:
-            user_df.at[i, "predicted rating"] = np.nan
-    
-    return user_df
+            predictions = predict_ratings(sim, ut, df[1], i).dropna()
+            indices = sorted(random.choices(predictions.index, k=sample))
+            print("The mse for a neighborhood of length", i, "with a sample size of", sample, "is", mse(predictions.loc[indices]))
 
-
-def mse(predicted_ratings):
-    # initialize variable
-    diffs = []
-    
-    # calculate the squared difference per rating/prediction
-    for i in predicted_ratings.index:
-        # make sure a prediction has been given
-        if not pd.isnull(predicted_ratings.loc[i]['predicted rating']):
-            diffs.append((predicted_ratings.loc[i]['stars'] - predicted_ratings.loc[i]['predicted rating']) ** 2)        
-    # return the sum of squares divided by n
-    return sum(diffs)/len(diffs)
-
-
-p = predict()
-print(p.loc[:100])
-print(mse(p.loc[:100]))
-
-
-# Only use cf when neighborhood is of length X, currently crashes when neighborhood is empty.
-
-# ut = create_utility_matrix(helpers.json_to_df())
-# sim = similarity_matrix_cosine(ut)
-# neighborhood = select_neighborhood(sim, ut, "gTNJye4cSFmYfdBQAwcTTg", "zuR-nKrXfVl4_WVP0n_AMg")
-# print(weighted_mean(neighborhood, ut, "gTNJye4cSFmYfdBQAwcTTg"))
-
-
-
-
-"""probably throwaway code"""
-# def test():
-#     """Create a utility matrix of businesses and user reviews"""
-#     # create an empty DataFrame
-#     utility_matrix = pd.DataFrame()
-
-#     # go over all cities
-#     for city in tqdm(CITIES):
-#         # create a city-specific DataFrame
-#         cityFrame = pd.DataFrame()
-#         # add all reviews from that city to the DataFrame
-#         for review in REVIEWS[city]:
-#             cityFrame.at[review["business_id"], review["user_id"]] = review["stars"]
-#         # append the city DataFrame to the utility matrix
-#         utility_matrix = utility_matrix.append(cityFrame, sort=False)
-    
-#     return utility_matrix
-
-# def predict():
-#     user_df = helpers.json_to_df().reset_index()[["business_id", "stars", "user_id"]]
-#     ut = create_utility_matrix(user_df)
-#     sim = similarity_matrix_cosine(ut)
-
-#     for i in tqdm(user_df.index):
-#         neighborhood = select_neighborhood(sim, ut, user_df.loc[i]["user_id"], user_df.loc[i]["business_id"])
-#         if len(neighborhood) >= 5:
-#             user_df.at[i, "predicted rating"] = weighted_mean(neighborhood, ut, user_df.loc[i]["user_id"])
-#         else:
-#             user_df.at[i, "predicted rating"] = "appelsap"
-    
-#     return user_df
+test_mse(repetitions = 5)
