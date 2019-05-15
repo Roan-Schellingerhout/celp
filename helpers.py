@@ -7,9 +7,9 @@ from tqdm import tqdm
 import pandas as pd
 from pandas.io.json import json_normalize
 import numpy as np
-
-import matplotlib.pyplot as plt
-import matplotlib.lines as mlines
+import time
+import sklearn.metrics.pairwise as pw
+import spacy 
 
 
 def distance(user_id, business_id):
@@ -150,6 +150,7 @@ def json_to_df_categories():
     
     # drop repeated user/business reviews and only save the latest one (since that one is most relevant)
     df = df.reset_index()[["business_id", "categories"]]
+    df = df.fillna("(No categories listed)")
     return df
 
 
@@ -183,6 +184,23 @@ def pivot_genres(df):
     return df.pivot_table(index = 'business_id', columns = 'categorie', aggfunc = 'size', fill_value=0)
 
 
+def create_utility_matrix(df):
+    """Creates a utility matrix from a DataFrame (which contains at least the columns stars, user_id, and business_id)"""
+    return df.pivot(values='stars', columns='user_id', index='business_id')
+
+
+def split_data(data, d = 0.75):
+    """Split data in a training and test set.
+    
+    Arguments:
+    data -- any dataFrame.
+    d    -- the fraction of data in the training set
+    """
+    np.random.seed(seed=5)
+    mask_test = np.random.rand(data.shape[0]) < d
+    return data[mask_test], data[~mask_test]
+
+
 def create_similarity_matrix_categories(matrix):
     """Create a similarity matrix based on categories"""
     npu = matrix.values
@@ -193,15 +211,122 @@ def create_similarity_matrix_categories(matrix):
     return pd.DataFrame(m3, index = matrix.index, columns = matrix.index)
 
 
-# jeff = json_to_df_categories()
-# jeff_2 = extract_genres(jeff)
-# skrrt = pivot_genres(jeff_2)
-# print(create_similarity_matrix_categories(skrrt))
+def similarity_matrix_cosine(utility_matrix):
+    """Creates a cosine similarity matrix from a utility matrix"""
+    # mean-center the matrix
+    matrix = utility_matrix.sub(utility_matrix.mean())
+    # create similarity matrix
+    return pd.DataFrame(pw.cosine_similarity(matrix.fillna(0)), index = utility_matrix.index, columns = utility_matrix.index)
 
 
+def spacy_similarity(df):
+    nlp = spacy.load("en_core_web_md")
+    sim = pd.DataFrame()
+
+    for i in tqdm(df.index):
+        bid = df.loc[i]["business_id"]
+        business_1_doc = nlp(df.loc[i]["categories"])
+        for j in df.index:
+            bid2 = df.loc[j]["business_id"]
+            if bid == bid2:
+                sim.at[bid, bid2] = 1
+            else:
+                business_2_doc = nlp(df.loc[j]["categories"])
+                sim.at[bid, bid2] = business_1_doc.similarity(business_2_doc)
+    return sim
 
 
+def predict_ratings(similarity, utility, to_predict, n):
+    """Predicts the predicted rating for the input test data.
+    
+    Arguments:
+    similarity -- a dataFrame that describes the similarity between items
+    utility    -- a dataFrame that contains a rating for each user (columns) and each movie (rows). 
+                  If a user did not rate an item the value np.nan is assumed. 
+    to_predict -- A dataFrame containing at least the columns movieId and userId for which to do the predictions
+    """
+    # copy input (don't overwrite)
+    ratings_test_c = to_predict.copy()
+    # apply prediction to each row
+    ratings_test_c['predicted rating'] = to_predict.apply(lambda row: predict_ids(similarity, utility, row['user_id'], row['business_id'], n), axis=1)
+    return ratings_test_c
 
+### Helper functions for predict_ratings_item_based ###
+
+
+def predict_ids(similarity, utility, userId, itemId, n):
+    # select right series from matrices and compute
+    if userId in utility.columns and itemId in similarity.index:
+        return predict_vectors(utility.loc[:,userId], similarity[itemId], n)
+    return np.nan
+
+
+def predict_vectors(user_ratings, similarities, n):
+    # select only movies actually rated by user
+    relevant_ratings = user_ratings.dropna()
+    
+    # select corresponding similairties
+    similarities_s = similarities[relevant_ratings.index]
+    
+    # select neighborhood
+    similarities_s = similarities_s[similarities_s > 0.0]
+    relevant_ratings = relevant_ratings[similarities_s.index]
+    
+    # if there's nothing left return a prediction of 0
+    norm = similarities_s.sum()
+    if(norm == 0) or len(similarities_s) < n:
+        return np.nan
+    
+    # compute a weighted average (i.e. neighborhood is all) 
+    return np.dot(relevant_ratings, similarities_s)/norm
+
+
+def mse(predicted_ratings):
+    """Computes the mean square error between actual ratings and predicted ratings
+    
+    Arguments:
+    predicted_ratings -- a dataFrame containing the columns rating and predicted rating
+    """
+    diff = predicted_ratings['stars'] - predicted_ratings['predicted rating']
+    return (diff**2).mean()
+
+
+def test_mse(neighborhood_size = 5, filtertype="collaborative filtering"):
+    """Tests the mse of predictions based on a given number of neighborhood sizes
+
+    neighborhood_size -- the sizes of neighborhoods between the number and 1 (so 5 tests for neighborhood of length 1, 2, 3, 4, 5)
+    filtertype -- the type of similarity you want to test the mse of   
+    """
+    # init variables
+    all_df = json_to_df()
+    df = split_data(all_df)
+    ut = create_utility_matrix(df[0])
+    print(ut)
+
+    if filtertype == "collaborative filtering":
+        print("Creating needed variables...")
+        sim = similarity_matrix_cosine(ut)
+    elif filtertype == "content based":
+        print("Creating needed variables...")
+        cats = json_to_df_categories()
+        fancy_cats = extract_genres(cats)
+        ut_cats = pivot_genres(fancy_cats)
+        sim = create_similarity_matrix_categories(ut_cats)
+    elif filtertype == "spacy":
+        print("Creating needed variables...")
+        sim = pd.read_msgpack("spacy_similarity.msgpack")
+    else:
+        print("Please enter a valid filtertype")
+        return
+
+    print("Starting calculations...")
+    mses = {}
+    # test the mse based on the length of the neighborhood
+    for i in tqdm(range(1, neighborhood_size + 1)):     
+        predictions = predict_ratings(sim, ut, df[1], i).dropna()
+        predictions = predictions[predictions["predicted rating"] > 4.5]
+        mses[i] = mse(predictions)
+    return mses
 
 
 

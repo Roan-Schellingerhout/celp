@@ -1,15 +1,8 @@
+from helpers import *
 from data import CITIES, BUSINESSES, USERS, REVIEWS, TIPS, CHECKINS
 
 import data
 import random
-from tqdm import tqdm
-from helpers import *
-import pandas as pd
-import numpy as np
-import time
-import sklearn.metrics.pairwise as pw
-from pandas.io.json import json_normalize
-import spacy 
 
 
 def recommend(user_id=None, business_id=None, city=None, n=10):
@@ -25,9 +18,29 @@ def recommend(user_id=None, business_id=None, city=None, n=10):
             adress:str
         }
     """
+
+    predict(user_id=user_id, business_id=business_id)
     if not city:
         city = random.choice(CITIES)
     return random.sample(BUSINESSES[city], n)
+
+
+
+
+def predict(user_id=None, business_id=None):
+    user_predictions = pd.DataFrame()
+    
+    all_df = json_to_df()
+    ut = create_utility_matrix(all_df)
+    asd = ut[user_id].dropna().index
+    print(ut.shape)
+    ut = ut.drop(index=asd)
+    print(ut.shape)
+    sim = similarity_matrix_cosine(ut)
+    predictions = predict_ratings(sim, ut, all_df, 0)
+    print(predictions[predictions["user_id"] == user_id])
+
+
 
 
 
@@ -49,150 +62,9 @@ def filter_recommendations(user_id, recommendations, n):
 
     # remove businesses that are too far away, as long as enough recommendations remain
     for i in recommendations:
-        if helpers.distance(user_id, recommendations.loc[i]["business_id"]) > 25 and len(recommendations) > n:
+        if distance(user_id, recommendations.loc[i]["business_id"]) > 25 and len(recommendations) > n:
             recommendations = recommendations.drop(index=i)
     return recommendations.reset_index()
 
 
-
-def create_utility_matrix(df):
-    """Creates a utility matrix from a DataFrame (which contains at least the columns stars, user_id, and business_id)"""
-    return df.pivot(values='stars', columns='user_id', index='business_id')
-
-
-
-def similarity_matrix_cosine(utility_matrix):
-    """Creates a cosine similarity matrix from a utility matrix"""
-    # mean-center the matrix
-    matrix = utility_matrix.sub(utility_matrix.mean())
-    # create similarity matrix
-    return pd.DataFrame(pw.cosine_similarity(matrix.fillna(0)), index = utility_matrix.index, columns = utility_matrix.index)
-
-
-def mse(predicted_ratings):
-    """Computes the mean square error between actual ratings and predicted ratings
-    
-    Arguments:
-    predicted_ratings -- a dataFrame containing the columns rating and predicted rating
-    """
-    diff = predicted_ratings['stars'] - predicted_ratings['predicted rating']
-    return (diff**2).mean()
-
-
-def split_data(data, d = 0.75):
-    """Split data in a training and test set.
-    
-    Arguments:
-    data -- any dataFrame.
-    d    -- the fraction of data in the training set
-    """
-    np.random.seed(seed=5)
-    mask_test = np.random.rand(data.shape[0]) < d
-    return data[mask_test], data[~mask_test]
-
-
-
-def predict_ratings(similarity, utility, to_predict, n):
-    """Predicts the predicted rating for the input test data.
-    
-    Arguments:
-    similarity -- a dataFrame that describes the similarity between items
-    utility    -- a dataFrame that contains a rating for each user (columns) and each movie (rows). 
-                  If a user did not rate an item the value np.nan is assumed. 
-    to_predict -- A dataFrame containing at least the columns movieId and userId for which to do the predictions
-    """
-    # copy input (don't overwrite)
-    ratings_test_c = to_predict.copy()
-    # apply prediction to each row
-    ratings_test_c['predicted rating'] = to_predict.apply(lambda row: predict_ids(similarity, utility, row['user_id'], row['business_id'], n), axis=1)
-    return ratings_test_c
-
-### Helper functions for predict_ratings_item_based ###
-
-
-def predict_ids(similarity, utility, userId, itemId, n):
-    # select right series from matrices and compute
-    if userId in utility.columns and itemId in similarity.index:
-        return predict_vectors(utility.loc[:,userId], similarity[itemId], n)
-    return np.nan
-
-
-def predict_vectors(user_ratings, similarities, n):
-    # select only movies actually rated by user
-    relevant_ratings = user_ratings.dropna()
-    
-    # select corresponding similairties
-    similarities_s = similarities[relevant_ratings.index]
-    
-    # select neighborhood
-    similarities_s = similarities_s[similarities_s > 0.0]
-    relevant_ratings = relevant_ratings[similarities_s.index]
-    
-    # if there's nothing left return a prediction of 0
-    norm = similarities_s.sum()
-    if(norm == 0) or len(similarities_s) < n:
-        return np.nan
-    
-    # compute a weighted average (i.e. neighborhood is all) 
-    return np.dot(relevant_ratings, similarities_s)/norm
-
-
-def json_to_df():
-    """Converts all review.jsons to a single DataFrame containing the columns business_id and user_id"""
-    df = pd.DataFrame()
-
-    # add each city's DataFrame to the general DataFrame
-    for city in CITIES:
-        reviews = REVIEWS[city]
-        df = df.append(pd.DataFrame.from_dict(json_normalize(reviews), orient='columns'))
-    
-    # drop repeated user/business reviews and only save the latest one (since that one is most relevant)
-    df = df.drop_duplicates(subset=["business_id", "user_id"], keep="last").reset_index()[["business_id", "stars", "user_id"]]
-    return df
-
-
-def test_mse(neighborhood_size = 5):
-    """Tests the mse of predictions based on a given number of neighborhood sizes
-
-    -neighborhood_size: the sizes of neighborhoods between the number and 1 (so 5 tests for neighborhood of length 1, 2, 3, 4, 5)    
-    """
-    # init variables
-    all_df = json_to_df()
-    df = split_data(all_df)
-    ut = create_utility_matrix(df[0])
-    sim = similarity_matrix_cosine(ut)
-
-    print("Starting calculations...")
-    # test the mse based on the length of the neighborhood
-    for i in range(1, neighborhood_size+1):
-        # if more than 0 repetitions are required, repeat the process
-        predictions = predict_ratings(sim, ut, df[1], i).dropna()
-        print("The mse for a neighborhood of length", i, "is", mse(predictions), "this is based on", len(predictions), "predictions")
-
-# test_mse(neighborhood_size=10)
-
-
-jeff = json_to_df_categories()
-jeff_2 = extract_genres(jeff)
-skrrt = pivot_genres(jeff_2)
-print(skrrt)
-
-def spacy_similarity(df):
-    nlp = spacy.load("en_core_web_md")
-    sim = pd.DataFrame()
-
-    for i in tqdm(df.index):
-        bid = df.loc[i]["business_id"]
-        business_1_doc = nlp(df.loc[i]["categories"])
-        for j in df.index:
-            bid2 = df.loc[j]["business_id"]
-            if bid == bid2:
-                sim.at[bid, bid2] = 1
-            else:
-                business_2_doc = nlp(df.loc[j]["categories"])
-                sim.at[bid, bid2] = business_1_doc.similarity(business_2_doc)
-    return sim
-
-spacy_sim = spacy_similarity(jeff)
-
-to_msg = utility_matrix.to_msgpack(r'C:/Users/Roan/celp/spacy_similarity.msgpack')
+recommend(user_id="--kdggJkUFNxLmQvzvYkUg", business_id="-2XMn8phKIqizvss9PBLCw")
