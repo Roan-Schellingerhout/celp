@@ -3,13 +3,13 @@ from data import CITIES, BUSINESSES, USERS, REVIEWS, TIPS, CHECKINS
 import data
 import random
 from tqdm import tqdm
-import helpers
+from helpers import *
 import pandas as pd
 import numpy as np
 import time
 import sklearn.metrics.pairwise as pw
 from pandas.io.json import json_normalize
-# from pandas_msgpack import to_msgpack, read_msgpack
+import spacy 
 
 
 def recommend(user_id=None, business_id=None, city=None, n=10):
@@ -151,13 +151,10 @@ def json_to_df():
     return df
 
 
-def test_mse(neighborhood_size = 5, sample = 10, repetitions = 0):
+def test_mse(neighborhood_size = 5):
     """Tests the mse of predictions based on a given number of neighborhood sizes
 
-    -neighborhood_size: the sizes of neighborhoods between the number and 1 (so 5 tests for neighborhood of length 1, 2, 3, 4, 5)
-    -sample: the amount of indices of the predictions to be taken into consideration (useful for making sure the amount of predictions don't matter)
-    -repetitions: the amount of times the experiment should be done, more repetitions give more accurate results
-    
+    -neighborhood_size: the sizes of neighborhoods between the number and 1 (so 5 tests for neighborhood of length 1, 2, 3, 4, 5)    
     """
     # init variables
     all_df = json_to_df()
@@ -169,18 +166,33 @@ def test_mse(neighborhood_size = 5, sample = 10, repetitions = 0):
     # test the mse based on the length of the neighborhood
     for i in range(1, neighborhood_size+1):
         # if more than 0 repetitions are required, repeat the process
-        if repetitions:
-            rep_loop = []
-            for j in range(repetitions):
-                predictions = predict_ratings(sim, ut, df[1], i).dropna()
-                indices = sorted(random.choices(predictions.index, k=sample))
-                rep_loop.append(mse(predictions.loc[indices]))
-            print("The mse for a neighborhood of length", i, "with a sample size of", sample, "over", repetitions, "repetitions is", sum(rep_loop)/len(rep_loop))
-            rep_loop = []
-        # if no repetitions are required, calculate the mse's once
-        else:
-            predictions = predict_ratings(sim, ut, df[1], i).dropna()
-            indices = sorted(random.choices(predictions.index, k=sample))
-            print("The mse for a neighborhood of length", i, "is", mse(predictions.loc[indices]), "this is based on", len(predictions), "predictions")
+        predictions = predict_ratings(sim, ut, df[1], i).dropna()
+        print("The mse for a neighborhood of length", i, "is", mse(predictions), "this is based on", len(predictions), "predictions")
 
-test_mse(neighborhood_size=10)
+# test_mse(neighborhood_size=10)
+
+
+jeff = json_to_df_categories()
+jeff_2 = extract_genres(jeff)
+skrrt = pivot_genres(jeff_2)
+print(skrrt)
+
+def spacy_similarity(df):
+    nlp = spacy.load("en_core_web_md")
+    sim = pd.DataFrame()
+
+    for i in tqdm(df.index):
+        bid = df.loc[i]["business_id"]
+        business_1_doc = nlp(df.loc[i]["categories"])
+        for j in df.index:
+            bid2 = df.loc[j]["business_id"]
+            if bid == bid2:
+                sim.at[bid, bid2] = 1
+            else:
+                business_2_doc = nlp(df.loc[j]["categories"])
+                sim.at[bid, bid2] = business_1_doc.similarity(business_2_doc)
+    return sim
+
+spacy_sim = spacy_similarity(jeff)
+
+to_msg = utility_matrix.to_msgpack(r'C:/Users/Roan/celp/spacy_similarity.msgpack')

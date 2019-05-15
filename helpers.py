@@ -193,10 +193,10 @@ def create_similarity_matrix_categories(matrix):
     return pd.DataFrame(m3, index = matrix.index, columns = matrix.index)
 
 
-jeff = json_to_df_categories()
-jeff_2 = extract_genres(jeff)
-skrrt = pivot_genres(jeff_2)
-print(create_similarity_matrix_categories(skrrt))
+# jeff = json_to_df_categories()
+# jeff_2 = extract_genres(jeff)
+# skrrt = pivot_genres(jeff_2)
+# print(create_similarity_matrix_categories(skrrt))
 
 
 
