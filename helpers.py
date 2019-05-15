@@ -6,6 +6,7 @@ import random
 from tqdm import tqdm
 import pandas as pd
 from pandas.io.json import json_normalize
+import numpy as np
 
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
@@ -137,52 +138,68 @@ def json_to_df():
     df = df.drop_duplicates(subset=["business_id", "user_id"], keep="last").reset_index()[["business_id", "stars", "user_id"]]
     return df
 
-def json_to_df_cat(type):
-    """Converts the json BUSINESSES to a DataFrame containing all businesses and their categories"""
+
+def json_to_df_categories():
+    """Converts all business.jsons to a single DataFrame containing the columns business_id and categories"""
     df = pd.DataFrame()
-    df_utility = pd.DataFrame()
 
-    # make the DataFrame contain everything from the businesses
+    # add each city's DataFrame to the general DataFrame
     for city in CITIES:
-        businesses = BUSINESSES[city]
-        df = df.append(pd.DataFrame.from_dict(json_normalize(businesses), orient='columns'))
+        business = BUSINESSES[city]
+        df = df.append(pd.DataFrame.from_dict(json_normalize(business), orient='columns'))
+    
+    # drop repeated user/business reviews and only save the latest one (since that one is most relevant)
+    df = df.reset_index()[["business_id", "categories"]]
+    return df
 
-    # only keep the specified columns
-    df = df[["business_id", "categories"]]
 
-    # clean up the categories
-    df["categories"] = df["categories"].map(str.lower)
 
-    # make a list with all the ids and an empty set
-    ids = list(df["business_id"])
-    all_cats = set()
+def extract_genres(raw_df):
+    """Create an unfolded categorie dataframe. Unpacks categories seprated by a ',' into seperate rows.
 
-    # make every id get all the cats and replace the categories value with a list of the values.
-    for id in ids:
-        cats = df["categories"].loc[df["business_id"] == id]
-        cats = list(cats)
-        cats = cats[0].split(",")
-        df["categories"].loc[df["business_id"] == id] = [ cats ]  
+    Arguments:
+    raw_df -- a dataFrame containing at least the columns 'business_id' and 'categories' 
+              where categories are seprated by ','
+    """
+    genres_m = raw_df.apply(lambda row: pd.Series([row['business_id']] + row['categories'].lower().split(",")), axis=1)
+    stack_genres = genres_m.set_index(0).stack()
+    df_stack_genres = stack_genres.to_frame()
+    df_stack_genres['business_id'] = stack_genres.index.droplevel(1)
+    df_stack_genres.columns = ['categorie', 'business_id']
+    return df_stack_genres.reset_index()[['business_id', 'categorie']]
+    
 
-        for cat in cats:
-            all_cats.add(cat)
+def pivot_genres(df):
+    """Create a one-hot encoded matrix for genres.
+    
+    Arguments:
+    df -- a dataFrame containing at least the columns 'business_id' and 'categorie'
+    
+    Output:
+    a matrix containing '0' or '1' in each cell.
+    1: the business has the categorie
+    0: the business does not have the categorie
+    """
+    return df.pivot_table(index = 'business_id', columns = 'categorie', aggfunc = 'size', fill_value=0)
 
-    if type == "Spacy":
-        return df
 
-    df_utility = pd.DataFrame(index= ids, columns= all_cats)
+def create_similarity_matrix_categories(matrix):
+    """Create a similarity matrix based on categories"""
+    npu = matrix.values
+    m1 = npu @ npu.T
+    diag = np.diag(m1)
+    m2 = m1 / diag
+    m3 = np.minimum(m2, m2.T)
+    return pd.DataFrame(m3, index = matrix.index, columns = matrix.index)
 
-    # for every id check if a cat is applied to the id
-    for id in ids:
-        cats = list(df["categories"].loc[df["business_id"] == id])
-        cats = cats[0]
-        for cat in list(df_utility):
-            if cat in cats:
-                df_utility.at[id, cat] = 1
-            else:
-                df_utility.at[id, cat] = 0
 
-    return df_utility
+jeff = json_to_df_categories()
+jeff_2 = extract_genres(jeff)
+skrrt = pivot_genres(jeff_2)
+print(create_similarity_matrix_categories(skrrt))
+
+
+
 
 
 
