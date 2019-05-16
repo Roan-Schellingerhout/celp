@@ -392,6 +392,38 @@ def predict_all():
 
     return mses
 
+def score(business_id):
+
+    # make the data usable
+    df = pd.DataFrame()
+    for city in CITIES:
+        business = BUSINESSES[city]
+        df = df.append(pd.DataFrame.from_dict(json_normalize(reviews), orient='columns'))
+    
+    df_start = extract_genres(df)
+    df_genres = pivot_genres(df_start)
+    df_genres_sim = create_similarity_matrix_categories(df_genres)
+    df_base = df_genres_sim[business_id]
+    
+    # for every entry build a score
+    for i in df_base.index:
+        business = df.loc[i]
+        df_base.at["review count", i] = business["review_count"]
+        df_base.at["stars", i] = business["stars"]
+        df_base.at["distance", i] = distance_2_businesses(business_id, i)
+        df_base.at["score", i] = business["stars"] * 1 + business["review_count"] * 0.5 + business["distance"] * 0.5 + df_genres_sim[business_id].loc[i] * 1
+    
+    
+    # sort the dataframe by the highest score
+    df = df.sort_values(by=["score"])
+    recommend_id = list(df_base.index)
+    recommend_id = recommend_id[0,9]
+    
+    # get the recommendations and convert them to a list of dicts
+    recommendations = df.loc[recommend_id]
+    recommendations = df.to_json(orient='records')
+
+    return recommendations
 
 
 """To be used in jupyter notebook
