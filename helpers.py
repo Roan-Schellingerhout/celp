@@ -34,6 +34,27 @@ def distance(user_id, business_id):
 
     return R * c
 
+def distance_2_businesses(business_id, business_id_2):
+    """Calculates the distance between two businesses in km"""
+    # radius of earth in km 
+    R = 6373.0
+
+    try:
+        loc1 = location_business(business_id)
+        loc2 = location_business(business_id_2)
+    except:
+        return "Invalid business_id"
+
+    # convert degrees to radians
+    lat1 = radians(loc1[0]) 
+    lon1 = radians(loc1[1]) 
+    lat2 = radians(loc2[0]) 
+    lon2 = radians(loc2[1]) 
+
+    a = sin((lat2 - lat1) / 2)**2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1) / 2)**2 
+    c = 2 * atan2(sqrt(a), sqrt(1 - a)) 
+
+    return R * c
 
 def hometowns():
     """Find the (probable) hometown of each user in the dataset"""
@@ -397,5 +418,11 @@ Data based on following cities: clairton, claremont, clark, clarkson, cleveland,
 # mse_cb_spacy = mlines.Line2D([], [], color='green', label='mse (content-based filtering with spacy)')
 
 
+<<<<<<< HEAD
 # plt.legend(handles=[mse_cf, mse_cb, mse_cb_spacy], loc="best")
 # plt.show()
+=======
+# fig.tight_layout()
+# plt.legend(handles=[mse, amount], loc="upper right")
+# plt.show()
+>>>>>>> a6f842610ab3b23d6bb42acbbf9c398fe83db5ae
