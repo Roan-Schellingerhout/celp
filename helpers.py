@@ -349,6 +349,38 @@ def test_mse(neighborhood_size = 5, filtertype="collaborative filtering"):
         mses[i] = mse(predictions)
     return mses
 
+##################################################################################
+def score(business_id):
+    
+    # make a dataframe from the BUSINESSES json
+    df = pd.DataFrame()
+    for city in CITIES:
+        business = BUSINESSES[city]
+        df = df.append(pd.DataFrame.from_dict(json_normalize(reviews), orient='columns'))
+    
+    # make the data usable
+    df_start = extract_genres(df)
+    df_genres = pivot_genres(df_start)
+    df_genres_sim = create_similarity_matrix_categories(df_genres)
+    df_base = df_genres_sim[business_id]
+    
+    # for every business_id make 3 columns with values to be used for score
+    for i in df_base.index:
+        business = df.loc[i]
+        df_base.at["review count", i] = business["review_count"]
+        df_base.at["stars", i] = business["stars"]
+        df_base.at["distance", i] = distance_2_businesses(business_id, i)
+        df_base.at["score", i] = business["stars"] * 1 + business["review_count"] * 0.5 + business["distance"] * 0.5 + df_genres_sim[business_id].loc[i] * 1
+    
+    recommend_id = list(df_base.index)
+    recommend_id = recommend_id[0,9]
+
+    recommandations = df.loc[recommend_id]
+
+    # missing feature to confert recommandations from df to list of dicts
+    
+    return recommandations
+##################################################################################
 
 
 """To be used in jupyter notebook
