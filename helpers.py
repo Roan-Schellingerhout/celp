@@ -411,7 +411,7 @@ def score(business_id):
         df_base.at["review count", i] = business["review_count"]
         df_base.at["stars", i] = business["stars"]
         df_base.at["distance", i] = distance_2_businesses(business_id, i)
-        df_base.at["score", i] = business["stars"] * 1 + business["review_count"] * 0.5 + business["distance"] * 0.5 + df_genres_sim[business_id].loc[i] * 1
+        df_base.at["score", i] = ((business["stars"] / 5) * (business["review_count"] / 100)) + business["distance"] * -0.04 + df_genres_sim[business_id].loc[i] * 2
     
     
     # sort the dataframe by the highest score
