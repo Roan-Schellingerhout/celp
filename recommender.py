@@ -18,11 +18,7 @@ def recommend(user_id=None, business_id=None, city=None, n=10):
             adress:str
         }
     """
-
-    predict(user_id=user_id, business_id=business_id)
-    if not city:
-        city = random.choice(CITIES)
-    return random.sample(BUSINESSES[city], n)
+    return predict(user_id=user_id, business_id=business_id).nlargest(10)
 
 
 
@@ -38,7 +34,7 @@ def predict(user_id=None, business_id=None):
     print(ut.shape)
     sim = similarity_matrix_cosine(ut)
     predictions = predict_ratings(sim, ut, all_df, 0)
-    print(predictions[predictions["user_id"] == user_id])
+    return predictions[predictions["user_id"] == user_id]
 
 
 
