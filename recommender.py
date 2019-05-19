@@ -3,6 +3,7 @@ from data import CITIES, BUSINESSES, USERS, REVIEWS, TIPS, CHECKINS
 
 import data
 import random
+import pandas
 
 
 def recommend(user_id=None, business_id=None, city=None, n=10):
@@ -18,8 +19,20 @@ def recommend(user_id=None, business_id=None, city=None, n=10):
             adress:str
         }
     """
-    print(predict(user_id=user_id, business_id=business_id).nlargest(10,'predicted rating'))
-    return predict(user_id=user_id, business_id=business_id).nlargest(10,'predicted rating')
+    prediction=predict(user_id=user_id, business_id=business_id).nlargest(n,'predicted rating')
+    prediction=prediction.drop(['user_id', 'predicted rating'], axis=1)
+    # insert cities of the businesses in the dataframe
+    prediction['city']=None
+    prediction['name']=None
+    prediction['adress']=None
+    for x in prediction['business_id']:
+        prediction[x,'city']=business_city(x)
+    # insert names and address of the businesses in the dataframe
+    for x in prediction['business_id']:
+        business_data=get_business(business_id)
+        prediction[x,'name']=business_data[0]
+        prediction[x,'adress']=business_data[1]
+    return prediction.to_dict(orient='records')
 
 
 
@@ -63,6 +76,5 @@ def filter_recommendations(user_id, recommendations, n):
         if distance(user_id, recommendations.loc[i]["business_id"]) > 25 and len(recommendations) > n:
             recommendations = recommendations.drop(index=i)
     return recommendations.reset_index()
-
 
 recommend(user_id="--kdggJkUFNxLmQvzvYkUg", business_id="-2XMn8phKIqizvss9PBLCw")

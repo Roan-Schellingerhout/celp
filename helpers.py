@@ -56,6 +56,14 @@ def distance_2_businesses(business_id, business_id_2):
 
     return R * c
 
+def get_business(business_id):
+    """Find business i"""
+    for city in BUSINESSES:
+        for business in city:
+            if business_id == business['business_id']:
+                return (business['name'],business['address'])
+
+
 def hometowns():
     """Find the (probable) hometown of each user in the dataset"""
     # init variables
@@ -450,11 +458,6 @@ Data based on following cities: clairton, claremont, clark, clarkson, cleveland,
 # mse_cb_spacy = mlines.Line2D([], [], color='green', label='mse (content-based filtering with spacy)')
 
 
-<<<<<<< HEAD
-# plt.legend(handles=[mse_cf, mse_cb, mse_cb_spacy], loc="best")
-# plt.show()
-=======
 # fig.tight_layout()
 # plt.legend(handles=[mse, amount], loc="upper right")
 # plt.show()
->>>>>>> a6f842610ab3b23d6bb42acbbf9c398fe83db5ae
