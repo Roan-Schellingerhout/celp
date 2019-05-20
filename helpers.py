@@ -58,10 +58,10 @@ def distance_2_businesses(business_id, business_id_2):
 
 def get_business(business_id):
     """Find business i"""
-    for city in BUSINESSES:
-        for business in city:
+    for city in CITIES:
+        for business in BUSINESSES[city]:
             if business_id == business['business_id']:
-                return (business['name'],business['address'])
+                return (business['stars'], business['name'], business['address'])
 
 
 def hometowns():
@@ -265,7 +265,7 @@ def spacy_similarity(df):
     return sim
 
 
-def predict_ratings(similarity, utility, to_predict, n):
+def predict_ratings(similarity, utility, to_predict, n, cutoff=None):
     """Predicts the predicted rating for the input test data.
     
     Arguments:
@@ -273,24 +273,27 @@ def predict_ratings(similarity, utility, to_predict, n):
     utility    -- a dataFrame that contains a rating for each user (columns) and each movie (rows). 
                   If a user did not rate an item the value np.nan is assumed. 
     to_predict -- A dataFrame containing at least the columns movieId and userId for which to do the predictions
+    n -- the minimum neighborhood length required to predict
+    cutoff -- Optional. Used with spaCy based filtering. determines the minimum similarity required to include an item in
+              the neighborhood
     """
     # copy input (don't overwrite)
     ratings_test_c = to_predict.copy()
     # apply prediction to each row
-    ratings_test_c['predicted rating'] = to_predict.apply(lambda row: predict_ids(similarity, utility, row['user_id'], row['business_id'], n), axis=1)
+    ratings_test_c['predicted rating'] = to_predict.apply(lambda row: predict_ids(similarity, utility, row['user_id'], row['business_id'], n, cutoff=cutoff), axis=1)
     return ratings_test_c
 
 ### Helper functions for predict_ratings_item_based ###
 
 
-def predict_ids(similarity, utility, userId, itemId, n):
+def predict_ids(similarity, utility, userId, itemId, n, cutoff):
     # select right series from matrices and compute
     if userId in utility.columns and itemId in similarity.index:
-        return predict_vectors(utility.loc[:,userId], similarity[itemId], n)
+        return predict_vectors(utility.loc[:,userId], similarity[itemId], n, cutoff=cutoff)
     return np.nan
 
 
-def predict_vectors(user_ratings, similarities, n):
+def predict_vectors(user_ratings, similarities, n, cutoff):
     # select only movies actually rated by user
     relevant_ratings = user_ratings.dropna()
     
@@ -298,9 +301,13 @@ def predict_vectors(user_ratings, similarities, n):
     similarities_s = similarities[relevant_ratings.index]
     
     # select neighborhood
-    similarities_s = similarities_s[similarities_s > 0.0]
-    relevant_ratings = relevant_ratings[similarities_s.index]
-    
+    if not cutoff:
+        similarities_s = similarities_s[similarities_s > 0.0]
+        relevant_ratings = relevant_ratings[similarities_s.index]
+    else:
+        similarities_s = similarities_s[similarities_s > cutoff]
+        relevant_ratings = relevant_ratings[similarities_s.index]
+
     # if there's nothing left return a prediction of 0
     norm = similarities_s.sum()
     if(norm == 0) or len(similarities_s) < n:
@@ -352,12 +359,9 @@ def test_mse(neighborhood_size = 5, filtertype="collaborative filtering"):
     # test the mse based on the length of the neighborhood
     for i in range(1, neighborhood_size + 1):     
         predictions = predict_ratings(sim, ut, df[1], i).dropna()
+        amount = len(predictions)
         mses[i] = mse(predictions)
-    return mses
-
-# test_mse(filtertype="content based")
-# test_mse(filtertype="spacy")
-# test_mse()
+    return mses, amount
 
 
 def predict_all():
@@ -400,13 +404,14 @@ def predict_all():
 
     return mses
 
+
 def score(business_id):
 
     # make the data usable
     df = pd.DataFrame()
     for city in CITIES:
         business = BUSINESSES[city]
-        df = df.append(pd.DataFrame.from_dict(json_normalize(reviews), orient='columns'))
+        df = df.append(pd.DataFrame.from_dict(json_normalize(business), orient='columns'))
     
     df_start = extract_genres(df)
     df_genres = pivot_genres(df_start)
