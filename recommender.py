@@ -93,7 +93,7 @@ def predict_for_user(user_id=None, n=10):
 
     # predict using spaCy-based content-based filtering
     sim = pd.read_msgpack("spacy_similarity.msgpack")
-    predictions_3 = helpers.predict_ratings(sim, ut, to_predict, 0, cutoff=0.9)[["user_id", "business_id", "predicted rating"]]
+    predictions_3 = helpers.predict_ratings(sim, ut, to_predict, 0, cutoff=0.8)[["user_id", "business_id", "predicted rating"]]
     
     # find the new predictions made and add them to the df of predictions
     new_predictions = predictions_3[~predictions_3["business_id"].isin(predictions.dropna()["business_id"].values)]      
