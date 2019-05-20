@@ -48,7 +48,6 @@ def recommend(user_id=None, business_id=None, city=None, n=10):
         # clean the dataframe
         prediction = prediction.applymap(str)
         prediction = prediction.drop("index", axis=1)
-        print(prediction)
         
         return prediction.to_dict(orient='records')
 
