@@ -19,7 +19,6 @@ def recommend(user_id=None, business_id=None, city=None, n=10):
             adress:str
         }
     """
-
     if not user_id and not business_id:
         city = random.choice(CITIES)
         return random.sample(BUSINESSES[city], n)
@@ -52,10 +51,25 @@ def recommend(user_id=None, business_id=None, city=None, n=10):
         return prediction.to_dict(orient='records')
 
     elif business_id:
-        city = random.choice(CITIES)
-        return random.sample(BUSINESSES[city], n)
-    # die functie van matthijs gebruiken
+        # init variables
+        prediction = pd.DataFrame()
+        similar_businesses = helpers.score(business_id, n=10)
+        
+        # find the city of each recommendation
+        for x in similar_businesses:
+            prediction.at[x,'city']=helpers.business_city(x)
+        
+        # insert stars, names, and address of the businesses in the dataframe
+        for x in prediction.index:
+            business_data=helpers.get_business(x)
+            prediction.at[x,'stars']=business_data[0]
+            prediction.at[x,'name']=business_data[1]
+            prediction.at[x,'adress']=business_data[2]
+        
+        # clean the dataframe
+        prediction = prediction.applymap(str)
 
+        return prediction.to_dict(orient='records')
 
 
 def predict_for_user(user_id=None, n=10):

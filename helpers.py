@@ -405,38 +405,37 @@ def predict_all():
     return mses
 
 
-def score(business_id):
+def score(business_id, n=10):
 
     # make the data usable
     df = pd.DataFrame()
     for city in CITIES:
-        business = BUSINESSES[city]
-        df = df.append(pd.DataFrame.from_dict(json_normalize(business), orient='columns'))
+        business = BUSINESSES[city]      
+        df = df.append(pd.DataFrame.from_dict(json_normalize(business), orient='columns')).reset_index()
     
+    # create variables
     df_start = extract_genres(df)
     df_genres = pivot_genres(df_start)
     df_genres_sim = create_similarity_matrix_categories(df_genres)
-    df_base = df_genres_sim[business_id]
-    
-    # for every entry build a score
-    for i in df_base.index:
-        business = df.loc[i]
-        df_base.at["review count", i] = business["review_count"]
-        df_base.at["stars", i] = business["stars"]
-        df_base.at["distance", i] = distance_2_businesses(business_id, i)
-        df_base.at["score", i] = ((business["stars"] / 5) * (business["review_count"] / 100)) + business["distance"] * -0.04 + df_genres_sim[business_id].loc[i] * 2
-    
-    
-    # sort the dataframe by the highest score
-    df = df.sort_values(by=["score"])
-    recommend_id = list(df_base.index)
-    recommend_id = recommend_id[0,9]
-    
-    # get the recommendations and convert them to a list of dicts
-    recommendations = df.loc[recommend_id]
-    recommendations = df.to_json(orient='records')
 
-    return recommendations
+    new_df = pd.DataFrame()
+
+    # find variables needed to calculate the score for each business
+    for i in df.index:
+        if df.loc[i]["business_id"] != business_id:
+            new_df.at[df.loc[i]["business_id"], "review count"] = df.loc[i]["review_count"]
+            new_df.at[df.loc[i]["business_id"], "stars"] = df.loc[i]["stars"]
+            new_df.at[df.loc[i]["business_id"], "distance"] = distance_2_businesses(business_id, df.loc[i]["business_id"])
+            new_df.at[df.loc[i]["business_id"], "similarity"] = df_genres_sim.loc[df.loc[i]["business_id"]][business_id]
+    
+    # calculate the score
+    new_df["score"] = (new_df["stars"] / 5) * (new_df["review count"] / 100) + new_df["distance"] * -0.04 + new_df["similarity"] * 2.5
+        
+    # find the n highest scoring businesses
+    recommendations = new_df.nlargest(n, "score")
+ 
+    # return the business_ids of said businesses
+    return recommendations.index
 
 
 """To be used in jupyter notebook
