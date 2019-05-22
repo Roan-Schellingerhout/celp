@@ -119,7 +119,7 @@ def predict_for_user(user_id=None, n=10):
     while len(predictions) < n:
         insert_random = random.choice(all_df[all_df["stars"] > 4]["business_id"].values)
         if insert_random not in predictions["business_id"].values:
-            predictions.loc[predictions.index.max()+1] = [user_id, insert_random, predictions["predicted rating"].mean()]
+            predictions.loc[predictions.index.max() + 1] = [user_id, insert_random, predictions["predicted rating"].mean()]
 
     return predictions
 
