@@ -352,7 +352,7 @@ def score(business_id, n=10):
             new_df.at[df.loc[i]["business_id"], "similarity"] = df_genres_sim.loc[df.loc[i]["business_id"]][business_id]
     
     # calculate the score
-    new_df["score"] = (new_df["stars"] / 5) * (new_df["review count"] / 100) + new_df["distance"] * -0.04 + new_df["similarity"] * 2.5
+    new_df["score"] = (new_df["stars"] / 5) * (np.log(new_df["review count"]) / 2) + new_df["distance"] * -0.04 + new_df["similarity"] * 5
         
     # find the n highest scoring businesses
     recommendations = new_df.nlargest(n, "score")
